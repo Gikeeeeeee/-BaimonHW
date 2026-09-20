@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Homework 3 - SCD 1 Ground Track</title>
+  <meta name="description" content="HW3 Space Flight Mechanics: SCD 1 (NORAD 22490) ground track and visibility analysis over Bangkok.">
+
+  <!-- Leaflet CSS for the interactive map -->
+  <!-- Leaflet CSS pinned to v1.9.4 - no SRI hash to avoid browser blocking on hash mismatch -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    /* =====================================================================
+       Base layout and typography
+    ====================================================================== */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f5f7fa;
+      color: #172033;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 22px 28px;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 1.4rem;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 15px;
+    }
+
+    /* =====================================================================
+       Card component
+    ====================================================================== */
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 15px 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 9px rgba(0, 0, 0, 0.07);
+    }
+
+    .card h2 {
+      margin-top: 0;
+    }
+
+    /* =====================================================================
+       Responsive grid for input panels
+    ====================================================================== */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    /* =====================================================================
+       Form elements
+    ====================================================================== */
+    input,
+    textarea,
+    button {
+      font: inherit;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    input,
+    textarea {
+      padding: 9px;
+      border: 1px solid #ccd3df;
+      border-radius: 6px;
+    }
+
+    textarea {
+      font-family: monospace;
+      height: 72px;
+      resize: vertical;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.88rem;
+      font-weight: bold;
+      color: #374151;
+    }
+
+    /* =====================================================================
+       Primary action button
+    ====================================================================== */
+    button {
+      padding: 11px;
+      margin-top: 14px;
+      border: 0;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+
+    /* =====================================================================
+       Map container
+    ====================================================================== */
+    #map {
+      height: 560px;
+      border-radius: 8px;
+    }
+
+    /* =====================================================================
+       Pass table
+    ====================================================================== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    th,
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+    }
+
+    tr:hover td {
+      background: #f1f5f9;
+    }
+
+    /* =====================================================================
+       Status bar states
+    ====================================================================== */
+    .status {
+      padding: 10px 14px;
+      background: #eef2ff;
+      margin-top: 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status.ok {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    /* =====================================================================
+       Metric display cards inside the visibility section
+    ====================================================================== */
+    .metric {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Homework 3 - AI-Assisted Ground Track Analysis</h1>
+    <p>010023402 &nbsp;|&nbsp; Space Flight Mechanics &nbsp;|&nbsp; SCD 1 (NORAD 22490)</p>
+  </header>
+
+  <main>
+    <!-- ================================================================
+         Section 1: TLE input
+    ================================================================= -->
+    <div class="card">
+      <h2>1. TLE Input</h2>
+      <label for="satName">Satellite name</label>
+      <input id="satName" value="SCD 1">
+      <br><br>
+      <label for="tle1">TLE Line 1</label>
+      <textarea id="tle1">1 22490U 93009B   26262.36096832  .00000310  00000+0  34023-4 0  9992</textarea>
+      <br>
+      <label for="tle2">TLE Line 2</label>
+      <textarea id="tle2">2 22490  24.9708 346.0942 0042117  54.9182 357.3069 14.46149921774766</textarea>
+    </div>
+
+    <!-- ================================================================
+         Section 2: Analysis settings and run button
+    ================================================================= -->
+    <div class="card">
+      <h2>2. Analysis Settings</h2>
+      <div class="grid">
+        <div>
+          <label for="obsLat">Observer latitude (deg)</label>
+          <input id="obsLat" type="number" value="13.75" step="0.01">
+        </div>
+        <div>
+          <label for="obsLon">Observer longitude (deg)</label>
+          <input id="obsLon" type="number" value="100.52" step="0.01">
+        </div>
+        <div>
+          <label for="minElev">Minimum elevation (deg)</label>
+          <input id="minElev" type="number" value="5" step="0.1">
+        </div>
+        <div>
+          <label for="timeStep">Time step (seconds)</label>
+          <input id="timeStep" type="number" value="30" min="1" max="300">
+        </div>
+      </div>
+      <button id="runBtn" onclick="runAnalysis()">Run 1-Day Analysis</button>
+      <div id="status" class="status">Ready. Waiting for satellite.js library to load...</div>
+    </div>
+
+    <!-- ================================================================
+         Section 3: Derived orbital elements table
+    ================================================================= -->
+    <div class="card">
+      <h2>3. Orbital Elements</h2>
+      <div id="elements">Run the analysis to view derived orbital elements.</div>
+      <!-- Export button is revealed by JS after a successful analysis run -->
+      <div id="exportWrap" style="display:none; margin-top:14px;">
+        <button id="exportBtn" onclick="copyToMATLAB()"
+          style="background:#059669; margin-top:0;"
+          onmouseover="this.style.background='#047857'"
+          onmouseout="this.style.background='#059669'">
+          Export / Copy Orbital Elements to MATLAB
+        </button>
+        <div id="exportStatus" style="font-size:0.82rem; margin-top:6px; color:#374151;"></div>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         Section 4: Leaflet ground track map
+    ================================================================= -->
+    <div class="card">
+      <h2>4. Ground Track (1-Day)</h2>
+      <div id="map"></div>
+    </div>
+
+    <!-- ================================================================
+         Section 5: Visibility summary metrics and pass table
+    ================================================================= -->
+    <div class="card">
+      <h2>5. Visibility Information over Bangkok</h2>
+      <div class="grid">
+        <div>
+          <div class="metric-label">TLE epoch</div>
+          <div id="metricEpoch" class="metric">-</div>
+        </div>
+        <div>
+          <div class="metric-label">Orbital period</div>
+          <div id="metricPeriod" class="metric">-</div>
+        </div>
+        <div>
+          <div class="metric-label">Total cumulative visible time</div>
+          <div id="metricTotal" class="metric">-</div>
+        </div>
+        <div>
+          <div class="metric-label">Number of passes</div>
+          <div id="metricCount" class="metric">-</div>
+        </div>
+      </div>
+      <h3>Pass Details</h3>
+      <div id="passTable">-</div>
+    </div>
+
+    <!-- ================================================================
+         Section 6: Narrative report summary
+    ================================================================= -->
+    <div class="card">
+      <h2>6. Report Summary</h2>
+      <div id="reportSummary" style="font-size:0.9rem; line-height:1.7; color:#374151;">
+        Run the analysis to generate a summary.
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================================================================
+       External library loading strategy:
+       1. Leaflet (map rendering) - pinned to v1.9.4 with SRI hash.
+       2. satellite.js (SGP4/SDP4 propagator) - primary CDN is jsDelivr
+          pinned to v4.1.4, which reliably exposes the global `satellite`
+          object.  A fallback onerror handler injects an unpkg mirror tag
+          if jsDelivr is unreachable.
+  ================================================================== -->
+
+  <!-- Leaflet JS pinned to v1.9.4 - no SRI hash to avoid browser blocking on hash mismatch -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- satellite.js primary source: jsDelivr CDN pinned to v4.1.4 -->
+  <script id="satjs-primary"
+    src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"
+    onerror="loadSatjsFallback()"></script>
+
+  <script>
+    /* ====================================================================
+       CONFIGURATION SECTION
+       All physical constants and default parameters are centralised here.
+       Edit only this object to change behaviour across the whole script.
+    ==================================================================== */
+    var CONFIG = {
+      // Earth gravitational parameter (km^3 / s^2)
+      MU_EARTH_KM3_S2: 398600.4418,
+
+      // Unit conversion factors
+      DEG_TO_RAD: Math.PI / 180,
+      RAD_TO_DEG: 180 / Math.PI,
+
+      // Time constants
+      MS_PER_DAY:  86400000,
+      MS_PER_MIN:  60000,
+      SEC_PER_DAY: 86400,
+      MIN_PER_DAY: 1440,
+
+      // Longitude jump threshold that signals an antimeridian crossing (degrees)
+      ANTIMERIDIAN_THRESHOLD_DEG: 180,
+
+      // Leaflet map initial zoom level
+      MAP_INITIAL_ZOOM: 2,
+
+      // Ground-track polyline appearance
+      TRACK_COLOR:  '#2563eb',
+      TRACK_WEIGHT: 2,
+
+      // Max-elevation marker appearance (amber dots on map)
+      PASS_MARKER_COLOR:  '#f59e0b',
+      PASS_MARKER_RADIUS: 5,
+
+      // Observer position marker appearance (red dot on map)
+      OBS_MARKER_COLOR:  '#dc2626',
+      OBS_MARKER_RADIUS: 7
+    };
+
+    /* ====================================================================
+       MODULE-LEVEL STATE
+    ==================================================================== */
+    var leafletMap   = null;   // Leaflet map instance (created once at startup)
+    var mapLayers    = [];     // References to all currently drawn map layers
+    var satrec       = null;   // satellite.js satellite record (from parsed TLE)
+    var satjsLoaded  = false;  // Set true when satellite.js is confirmed available
+
+    // Cache of the most recently computed orbital elements.
+    // Populated by runAnalysis() so that copyToMATLAB() can read the values
+    // independently of the propagation loop.
+    var lastElements = null;
+
+    /* ====================================================================
+       FALLBACK LOADER FOR satellite.js
+       Triggered automatically by the onerror attribute on the primary
+       script tag.  Inserts a second script tag pointing at the unpkg mirror.
+    ==================================================================== */
+    function loadSatjsFallback() {
+      console.warn('satellite.js: primary CDN (jsDelivr) failed. Trying unpkg fallback...');
+      setStatus('Primary CDN failed. Loading satellite.js from fallback (unpkg)...');
+
+      var fallback     = document.createElement('script');
+      fallback.src     = 'https://unpkg.com/satellite.js@4.1.4/dist/satellite.min.js';
+      fallback.onload  = onSatjsReady;
+      fallback.onerror = onSatjsFailedCompletely;
+      document.head.appendChild(fallback);
+    }
+
+    /* Called when any satellite.js load attempt succeeds. */
+    function onSatjsReady() {
+      satjsLoaded = true;
+      var btn = document.getElementById('runBtn');
+      if (btn) btn.disabled = false;
+      setStatus('satellite.js loaded. Ready to run analysis.');
+      console.info('satellite.js ready. Global object type:', typeof satellite);
+    }
+
+    /* Called when both CDN attempts have failed. */
+    function onSatjsFailedCompletely() {
+      setStatus(
+        'ERROR: Could not load satellite.js from any CDN. ' +
+        'Please check your internet connection and refresh the page.',
+        true
+      );
+      console.error('satellite.js failed to load from both jsDelivr and unpkg.');
+    }
+
+    /* ====================================================================
+       UTILITY: STATUS BAR HELPER
+    ==================================================================== */
+    function setStatus(msg, isError) {
+      var el = document.getElementById('status');
+      if (!el) return;
+      el.textContent = msg;
+      el.className   = 'status' + (isError ? ' error' : '');
+    }
+
+    /* ====================================================================
+       UTILITY: FORMAT A DATE AS A READABLE UTC STRING
+       Example output: "2026-09-19 08:34:12 UTC"
+    ==================================================================== */
+    function formatUTC(d) {
+      return d.toISOString().replace('T', ' ').slice(0, -5) + ' UTC';
+    }
+
+    /* ====================================================================
+       UTILITY: PARSE THE TLE EPOCH INTO A JavaScript Date OBJECT
+       TLE Line 1, columns 19-32 encode the epoch as YYDDD.DDDDDDDD.
+         - YY 00-56 maps to years 2000-2056.
+         - YY 57-99 maps to years 1957-1999.
+       The day-of-year field is 1-indexed, so day 1.0 = Jan 1 00:00:00 UTC.
+    ==================================================================== */
+    function epochFromTLE(line1) {
+      var yy   = parseInt(line1.slice(18, 20), 10);
+      var day  = parseFloat(line1.slice(20, 32));
+      var year = yy < 57 ? 2000 + yy : 1900 + yy;
+      return new Date(Date.UTC(year, 0, 1) + (day - 1) * CONFIG.MS_PER_DAY);
+    }
+
+    /* ====================================================================
+       UTILITY: NORMALISE A LONGITUDE VALUE TO THE RANGE [-180, 180] DEG
+    ==================================================================== */
+    function wrapLongitude(lon) {
+      var w = lon % 360;
+      if (w >  180) w -= 360;
+      if (w < -180) w += 360;
+      return w;
+    }
+
+    /* ====================================================================
+       MAP MANAGEMENT
+    ==================================================================== */
+
+    /* Initialise the Leaflet map once; subsequent calls are no-ops. */
+    function initMap() {
+      if (leafletMap) return;
+      var lat = parseFloat(document.getElementById('obsLat').value) || 13.75;
+      var lon = parseFloat(document.getElementById('obsLon').value) || 100.52;
+      leafletMap = L.map('map').setView([lat, lon], CONFIG.MAP_INITIAL_ZOOM);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18
+      }).addTo(leafletMap);
+    }
+
+    /* Remove all previously drawn layers from the map. */
+    function clearMap() {
+      for (var i = 0; i < mapLayers.length; i++) {
+        leafletMap.removeLayer(mapLayers[i]);
+      }
+      mapLayers = [];
+    }
+
+    /* ====================================================================
+       SGP4 PROPAGATION WRAPPERS
+    ==================================================================== */
+
+    /*
+     * propagateToGeodetic(date)
+     *
+     * Propagate the satellite to the given Date using SGP4/SDP4 (Vallado 2006)
+     * and return its geodetic position.
+     *
+     * satellite.js outputs an ECI (Earth-Centred Inertial) position vector.
+     * We convert that to geodetic (lat, lon, altitude) by computing the
+     * Greenwich Sidereal Time (GMST) at the same instant and rotating the
+     * ECI frame into the Earth-fixed frame.
+     *
+     * Returns { lat, lon, height, position } or null on propagation failure.
+     */
+    function propagateToGeodetic(date) {
+      var pv = satellite.propagate(satrec, date);
+      if (!pv || !pv.position) return null;
+
+      var gmst = satellite.gstime(date);
+      var gd   = satellite.eciToGeodetic(pv.position, gmst);
+
+      return {
+        lat:      gd.latitude  * CONFIG.RAD_TO_DEG,
+        lon:      wrapLongitude(gd.longitude * CONFIG.RAD_TO_DEG),
+        height:   gd.height,              // km above WGS-84 ellipsoid
+        position: pv.position             // raw ECI vector (km) for reuse
+      };
+    }
+
+    /*
+     * lookAngles(date, obsLatDeg, obsLonDeg, obsHeightKm)
+     *
+     * Compute the azimuth, elevation, and slant range from the ground observer
+     * to the satellite at the given Date.
+     *
+     * The observer geodetic position is expressed in ECF (Earth-Centred Fixed)
+     * coordinates, and the satellite ECI position is rotated into ECF using
+     * GMST.  The resulting ECF separation vector is decomposed into azimuth and
+     * elevation using the local topocentric (South-East-Zenith) frame.
+     *
+     * Returns { el, az, range } in degrees / km, or null on failure.
+     */
+    function lookAngles(date, obsLatDeg, obsLonDeg, obsHeightKm) {
+      obsHeightKm = obsHeightKm || 0;
+
+      var pv = satellite.propagate(satrec, date);
+      if (!pv || !pv.position) return null;
+
+      var gmst   = satellite.gstime(date);
+      var obs    = {
+        latitude:  obsLatDeg * CONFIG.DEG_TO_RAD,
+        longitude: obsLonDeg * CONFIG.DEG_TO_RAD,
+        height:    obsHeightKm
+      };
+      var satEcf = satellite.eciToEcf(pv.position, gmst);
+      var angles = satellite.ecfToLookAngles(obs, satEcf);
+
+      return {
+        el:    angles.elevation * CONFIG.RAD_TO_DEG,
+        az:    angles.azimuth   * CONFIG.RAD_TO_DEG,
+        range: angles.rangeSat
+      };
+    }
+
+    /* ====================================================================
+       PASS DETECTION HELPER
+       Linear interpolation between two bracketing elevation samples to
+       estimate the exact time of an elevation threshold crossing.
+       This refines AOS and LOS times to sub-time-step accuracy.
+    ==================================================================== */
+    function interpolateCrossing(t1, el1, t2, el2, targetEl) {
+      if (el2 === el1) return new Date(t1.getTime());
+      var frac = (targetEl - el1) / (el2 - el1);
+      return new Date(t1.getTime() + frac * (t2.getTime() - t1.getTime()));
+    }
+
+    /* ====================================================================
+       GROUND-TRACK RENDERER
+       Splits the polyline at antimeridian crossings to prevent Leaflet from
+       drawing a horizontal line across the entire map when the sub-satellite
+       point wraps from approximately +180 to -180 degrees longitude.
+    ==================================================================== */
+    function drawGroundTrack(trackPoints) {
+      var segment = [];
+      var prevLon = null;
+
+      for (var i = 0; i < trackPoints.length; i++) {
+        var lat = trackPoints[i][0];
+        var lon = trackPoints[i][1];
+
+        // A longitude jump larger than the threshold indicates an antimeridian
+        // crossing (not real orbital motion).  Flush the current segment and
+        // begin a new one on the opposite side.
+        if (prevLon !== null &&
+            Math.abs(lon - prevLon) > CONFIG.ANTIMERIDIAN_THRESHOLD_DEG) {
+          if (segment.length > 1) {
+            mapLayers.push(
+              L.polyline(segment, {
+                color:  CONFIG.TRACK_COLOR,
+                weight: CONFIG.TRACK_WEIGHT
+              }).addTo(leafletMap)
+            );
+          }
+          segment = [];
+        }
+
+        segment.push([lat, lon]);
+        prevLon = lon;
+      }
+
+      // Flush any remaining points in the final segment.
+      if (segment.length > 1) {
+        mapLayers.push(
+          L.polyline(segment, {
+            color:  CONFIG.TRACK_COLOR,
+            weight: CONFIG.TRACK_WEIGHT
+          }).addTo(leafletMap)
+        );
+      }
+    }
+
+    /* ====================================================================
+       MAIN ANALYSIS FUNCTION
+       Triggered by the "Run 1-Day Analysis" button.
+    ==================================================================== */
+    function runAnalysis() {
+
+      // Guard: verify that satellite.js is actually available before any
+      // propagation call.  This catches library load failures and version
+      // mismatches that do not expose the expected API surface.
+      if (typeof satellite === 'undefined' ||
+          typeof satellite.twoline2satrec !== 'function') {
+        setStatus(
+          'ERROR: satellite.js is not available. ' +
+          'Refresh the page and wait for the library to finish loading.',
+          true
+        );
+        return;
+      }
+
+      try {
+        /* ---- Read and sanitise user inputs ---- */
+        var line1   = document.getElementById('tle1').value.trim();
+        var line2   = document.getElementById('tle2').value.trim();
+        var obsLat  = parseFloat(document.getElementById('obsLat').value);
+        var obsLon  = parseFloat(document.getElementById('obsLon').value);
+        var minElev = parseFloat(document.getElementById('minElev').value);
+        var stepSec = Math.max(1, parseInt(document.getElementById('timeStep').value, 10));
+        var stepMs  = stepSec * 1000;
+
+        /* ---- Validate TLE format (basic check on line identifiers) ---- */
+        if (!line1.startsWith('1 ') || !line2.startsWith('2 ')) {
+          throw new Error('TLE lines must begin with "1 " and "2 " respectively.');
+        }
+        if (isNaN(obsLat) || isNaN(obsLon)) {
+          throw new Error('Observer latitude and longitude must be valid numbers.');
+        }
+
+        setStatus('Parsing TLE and propagating orbit...');
+
+        /* ---- Parse TLE into a satellite record (satrec) ----
+           satellite.twoline2satrec converts the two TLE strings into the
+           internal data structure consumed by the SGP4 propagator.
+           satrec.error is non-zero if the TLE is malformed or out of range.
+        ---- */
+        satrec = satellite.twoline2satrec(line1, line2);
+        if (satrec.error && satrec.error !== 0) {
+          throw new Error('satellite.js TLE parse error code: ' + satrec.error);
+        }
+
+        /* ---- Derive classical orbital elements from the satrec ----
+           satrec.no is the mean motion in radians per minute (SGP4 internal
+           units).  The semi-major axis is derived via the two-body formula:
+             a = ( mu / n^2 )^(1/3)   [km]
+           where n is converted to rad/s and mu is in km^3/s^2.
+        ---- */
+        var epoch               = epochFromTLE(line1);
+        var meanMotionRadPerMin = satrec.no;
+        var meanMotionRadPerSec = meanMotionRadPerMin / 60.0;
+        var semiMajorAxisKm     = Math.pow(
+                                    CONFIG.MU_EARTH_KM3_S2 /
+                                    (meanMotionRadPerSec * meanMotionRadPerSec),
+                                    1.0 / 3.0
+                                  );
+        var periodMin       = (2 * Math.PI) / meanMotionRadPerMin;
+        var inclinationDeg  = satrec.inclo * CONFIG.RAD_TO_DEG;
+        var raanDeg         = satrec.nodeo * CONFIG.RAD_TO_DEG;
+        var argPerigeeDeg   = satrec.argpo * CONFIG.RAD_TO_DEG;
+        var meanAnomalyDeg  = satrec.mo    * CONFIG.RAD_TO_DEG;
+        var eccentricity    = satrec.ecco;
+
+        /* ---- Update metric displays ---- */
+        document.getElementById('metricEpoch').textContent  = formatUTC(epoch);
+        document.getElementById('metricPeriod').textContent = periodMin.toFixed(2) + ' min';
+
+        /* ---- Render the orbital elements table ---- */
+        document.getElementById('elements').innerHTML =
+          '<table>' +
+          '<tr><th>Element</th><th>Symbol</th><th>Value</th></tr>' +
+          '<tr><td>Semi-major axis</td><td><i>a</i></td><td>'                           + semiMajorAxisKm.toFixed(3)  + ' km</td></tr>' +
+          '<tr><td>Eccentricity</td><td><i>e</i></td><td>'                              + eccentricity.toFixed(7)     + '</td></tr>' +
+          '<tr><td>Inclination</td><td><i>i</i></td><td>'                               + inclinationDeg.toFixed(4)   + ' deg</td></tr>' +
+          '<tr><td>RAAN</td><td><i>&Omega;</i></td><td>'                                + raanDeg.toFixed(4)          + ' deg</td></tr>' +
+          '<tr><td>Arg. of perigee</td><td><i>&omega;</i></td><td>'                    + argPerigeeDeg.toFixed(4)    + ' deg</td></tr>' +
+          '<tr><td>Mean anomaly at epoch</td><td><i>M</i><sub>0</sub></td><td>'        + meanAnomalyDeg.toFixed(4)   + ' deg</td></tr>' +
+          '<tr><td>Orbital period</td><td><i>T</i></td><td>'                            + periodMin.toFixed(2)        + ' min</td></tr>' +
+          '</table>';
+
+        /* ---- Cache computed elements so copyToMATLAB() can access them ---- */
+        lastElements = {
+          satName:    document.getElementById('satName').value,
+          a_km:       semiMajorAxisKm,
+          e:          eccentricity,
+          inc_deg:    inclinationDeg,
+          raan_deg:   raanDeg,
+          argp_deg:   argPerigeeDeg,
+          M0_deg:     meanAnomalyDeg,
+          period_min: periodMin,
+          epochUTC:   formatUTC(epoch)
+        };
+        // Reveal the export button now that valid elements are cached.
+        document.getElementById('exportWrap').style.display = 'block';
+        document.getElementById('exportStatus').textContent = '';
+
+        /* ---- Propagation loop over one day from TLE epoch ----
+           Advance the clock from t=0 to t=86400 s in increments of stepSec.
+           At each step, record:
+             trackPoints - geodetic [lat, lon] pairs for the map polyline.
+             samples     - { date, el, az, range } array for pass detection.
+        ---- */
+        var trackPoints = [];
+        var samples     = [];
+
+        for (var ms = 0; ms <= CONFIG.MS_PER_DAY; ms += stepMs) {
+          var date = new Date(epoch.getTime() + ms);
+          var geo  = propagateToGeodetic(date);
+          var look = lookAngles(date, obsLat, obsLon, 0);
+
+          if (geo)  trackPoints.push([geo.lat, geo.lon]);
+          if (look) samples.push({ date: date, el: look.el, az: look.az, range: look.range });
+        }
+
+        /* ---- Pass detection ----
+           Scan the elevation sample array for contiguous windows where
+           el >= minElev.  AOS and LOS times are refined by linear
+           interpolation between the two samples that straddle each crossing.
+        ---- */
+        var passes         = [];
+        var inPass         = false;
+        var passStart, passEnd, passMaxEl, passMaxTime;
+        var totalVisibleMs = 0;
+
+        for (var i = 0; i < samples.length; i++) {
+          var cur  = samples[i];
+          var prev = (i > 0)                    ? samples[i - 1] : null;
+          var next = (i < samples.length - 1)   ? samples[i + 1] : null;
+
+          /* Satellite rises above threshold: refine AOS by interpolation. */
+          if (cur.el >= minElev && !inPass) {
+            passStart   = (prev && prev.el < minElev)
+                          ? interpolateCrossing(prev.date, prev.el, cur.date, cur.el, minElev)
+                          : cur.date;
+            inPass      = true;
+            passMaxEl   = cur.el;
+            passMaxTime = cur.date;
+          }
+
+          if (inPass) {
+            /* Track the highest elevation sample within this pass. */
+            if (cur.el > passMaxEl) {
+              passMaxEl   = cur.el;
+              passMaxTime = cur.date;
+            }
+
+            /* Detect end of pass: next sample drops below threshold or is absent. */
+            var passEnding = (!next || next.el < minElev);
+            if (cur.el >= minElev && passEnding) {
+              passEnd = (next && next.el < minElev)
+                        ? interpolateCrossing(cur.date, cur.el, next.date, next.el, minElev)
+                        : cur.date;
+
+              var durationMs = passEnd.getTime() - passStart.getTime();
+              passes.push({
+                start:   passStart,
+                end:     passEnd,
+                maxEl:   passMaxEl,
+                maxTime: passMaxTime,
+                durMin:  durationMs / CONFIG.MS_PER_MIN
+              });
+              totalVisibleMs += durationMs;
+              inPass = false;
+            }
+          }
+        }
+
+        /* ---- Update cumulative visibility metrics ---- */
+        var totalVisibleMin = totalVisibleMs / CONFIG.MS_PER_MIN;
+        document.getElementById('metricTotal').textContent = totalVisibleMin.toFixed(2) + ' min';
+        document.getElementById('metricCount').textContent = passes.length;
+
+        /* ---- Build the pass detail table ---- */
+        var tableHtml =
+          '<table>' +
+          '<tr><th>#</th><th>AOS (UTC)</th><th>Max Elev (deg)</th>' +
+          '<th>Max Elev Time (UTC)</th><th>LOS (UTC)</th><th>Duration (min)</th></tr>';
+
+        for (var pi = 0; pi < passes.length; pi++) {
+          var p = passes[pi];
+          tableHtml +=
+            '<tr>' +
+            '<td>' + (pi + 1)             + '</td>' +
+            '<td>' + formatUTC(p.start)   + '</td>' +
+            '<td>' + p.maxEl.toFixed(2)   + '</td>' +
+            '<td>' + formatUTC(p.maxTime) + '</td>' +
+            '<td>' + formatUTC(p.end)     + '</td>' +
+            '<td>' + p.durMin.toFixed(2)  + '</td>' +
+            '</tr>';
+        }
+        document.getElementById('passTable').innerHTML = tableHtml + '</table>';
+
+        /* ---- Set up the Leaflet map ---- */
+        initMap();
+        clearMap();
+
+        /* ---- Draw the ground track, splitting at antimeridian crossings ---- */
+        drawGroundTrack(trackPoints);
+
+        /* ---- Place the observer position marker (red) ---- */
+        var obsMarker = L.circleMarker([obsLat, obsLon], {
+          radius:      CONFIG.OBS_MARKER_RADIUS,
+          color:       CONFIG.OBS_MARKER_COLOR,
+          fillColor:   CONFIG.OBS_MARKER_COLOR,
+          fillOpacity: 0.9
+        }).addTo(leafletMap);
+        obsMarker.bindPopup(
+          '<b>Observer (Bangkok)</b><br>' +
+          'Lat: ' + obsLat + '&deg;<br>' +
+          'Lon: ' + obsLon + '&deg;'
+        );
+        mapLayers.push(obsMarker);
+
+        /* ---- Place an amber marker at the max-elevation position of each pass ---- */
+        for (var mi = 0; mi < passes.length; mi++) {
+          /* Use an IIFE to capture the loop variables by value. */
+          (function(passIdx, passData) {
+            var geo = propagateToGeodetic(passData.maxTime);
+            if (!geo) return;
+
+            var marker = L.circleMarker([geo.lat, geo.lon], {
+              radius:      CONFIG.PASS_MARKER_RADIUS,
+              color:       CONFIG.PASS_MARKER_COLOR,
+              fillColor:   CONFIG.PASS_MARKER_COLOR,
+              fillOpacity: 0.9
+            }).addTo(leafletMap);
+
+            marker.bindPopup(
+              '<b>Pass ' + (passIdx + 1) + ' - Max Elevation</b><br>' +
+              'Elevation: ' + passData.maxEl.toFixed(2) + '&deg;<br>' +
+              formatUTC(passData.maxTime)
+            );
+            mapLayers.push(marker);
+          })(mi, passes[mi]);
+        }
+
+        /* ---- Pan map back to observer location ---- */
+        leafletMap.setView([obsLat, obsLon], CONFIG.MAP_INITIAL_ZOOM);
+
+        /* ---- Generate narrative report summary ---- */
+        var meanMotionRevPerDay = CONFIG.MIN_PER_DAY / periodMin;
+        var approxAltKm         = (semiMajorAxisKm - 6371.0).toFixed(1);
+        var bestPassEl = 0;
+        for (var bi = 0; bi < passes.length; bi++) {
+          if (passes[bi].maxEl > bestPassEl) bestPassEl = passes[bi].maxEl;
+        }
+
+        document.getElementById('reportSummary').innerHTML =
+          '<b>Satellite:</b> ' + document.getElementById('satName').value + ' (NORAD 22490)<br>' +
+          '<b>TLE Epoch:</b> ' + formatUTC(epoch) + '<br>' +
+          '<b>Inclination:</b> ' + inclinationDeg.toFixed(4) + ' deg (near-equatorial orbit)<br>' +
+          '<b>Semi-major axis:</b> ' + semiMajorAxisKm.toFixed(3) + ' km ' +
+            '(approx. altitude ~' + approxAltKm + ' km above Earth mean sphere)<br>' +
+          '<b>Orbital period:</b> ' + periodMin.toFixed(2) + ' min (' +
+            meanMotionRevPerDay.toFixed(4) + ' rev/day)<br>' +
+          '<b>Observer:</b> Bangkok (' + obsLat + '&deg; N, ' + obsLon + '&deg; E), ' +
+            'min elevation threshold: ' + minElev + '&deg;<br>' +
+          '<b>Analysis window:</b> 1 day from TLE epoch, time step = ' + stepSec + ' s<br>' +
+          '<b>Passes above horizon:</b> ' + passes.length + '<br>' +
+          '<b>Total cumulative visibility:</b> ' + totalVisibleMin.toFixed(2) + ' min<br>' +
+          (passes.length > 0
+            ? '<b>Best pass max elevation:</b> ' + bestPassEl.toFixed(2) + ' deg'
+            : '<i>No passes detected above the minimum elevation threshold during this window.</i>');
+
+        /* ---- Final status update ---- */
+        document.getElementById('status').textContent =
+          'Analysis complete. ' + passes.length + ' pass(es) found over the 1-day window.';
+        document.getElementById('status').className = 'status ok';
+
+      } catch (err) {
+        setStatus('Error: ' + err.message, true);
+        console.error(err);
+      }
+    }
+
+    /* ====================================================================
+       MATLAB EXPORT FUNCTION
+       Formats the most recently computed orbital elements as a MATLAB
+       variable assignment block and copies it to the system clipboard.
+       The output is designed to be pasted directly into the INPUT section
+       of HW3_SCD1_Orbit_Analysis.m.
+    ==================================================================== */
+    function copyToMATLAB() {
+      var statusEl = document.getElementById('exportStatus');
+
+      // Guard: elements must have been computed at least once.
+      if (!lastElements) {
+        statusEl.textContent = 'Run the analysis first to generate orbital elements.';
+        statusEl.style.color = '#991b1b';
+        return;
+      }
+
+      var el = lastElements;
+
+      // Build the MATLAB snippet.  Values use enough decimal places to
+      // preserve the full precision of the TLE-derived elements.
+      var lines = [
+        '% ----------------------------------------------------------------',
+        '% Orbital elements exported from HW3 Web Tool  (SGP4 / satellite.js)',
+        '% Satellite : ' + el.satName,
+        '% TLE Epoch : ' + el.epochUTC,
+        '% Paste this block into the INPUT ORBITAL ELEMENTS section of',
+        '% HW3_SCD1_Orbit_Analysis.m before running the script.',
+        '% ----------------------------------------------------------------',
+        '',
+        'a_km     = ' + el.a_km.toFixed(6)       + ';  % Semi-major axis (km)',
+        'e        = ' + el.e.toFixed(9)           + ';  % Eccentricity (dimensionless)',
+        'inc_deg  = ' + el.inc_deg.toFixed(6)     + ';  % Inclination (deg)',
+        'raan_deg = ' + el.raan_deg.toFixed(6)    + ';  % Right Ascension of Ascending Node (deg)',
+        'argp_deg = ' + el.argp_deg.toFixed(6)    + ';  % Argument of perigee (deg)',
+        'M0_deg   = ' + el.M0_deg.toFixed(6)      + ';  % Mean anomaly at epoch (deg)',
+        '',
+        '% Derived period (for reference and cross-check)',
+        'T_sgp4_min = ' + el.period_min.toFixed(6) + ';  % Orbital period from SGP4 mean motion (min)',
+        ''
+      ];
+
+      var text = lines.join('\n');
+
+      // Prefer the modern async Clipboard API (requires a secure context).
+      // Fall back to the legacy execCommand method for older browsers.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () {
+          statusEl.textContent = 'Copied to clipboard. Paste into HW3_SCD1_Orbit_Analysis.m.';
+          statusEl.style.color = '#166534';
+        }).catch(function () {
+          fallbackCopy(text, statusEl);
+        });
+      } else {
+        fallbackCopy(text, statusEl);
+      }
+    }
+
+    /* Legacy clipboard copy using a temporary off-screen textarea element. */
+    function fallbackCopy(text, statusEl) {
+      var ta        = document.createElement('textarea');
+      ta.value      = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity  = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        statusEl.textContent = 'Copied to clipboard. Paste into HW3_SCD1_Orbit_Analysis.m.';
+        statusEl.style.color = '#166534';
+      } catch (copyErr) {
+        statusEl.textContent = 'Auto-copy failed. Check browser console for the text.';
+        statusEl.style.color = '#991b1b';
+        console.log('--- MATLAB EXPORT (copy manually) ---\n' + text);
+      }
+      document.body.removeChild(ta);
+    }
+
+    /* ====================================================================
+       INITIALISATION ON PAGE LOAD
+       1. Initialise the Leaflet map so tiles start loading immediately.
+       2. Check whether satellite.js was already loaded synchronously by the
+          time this script block executes (the normal case when the CDN is
+          reachable).  If so, mark it ready; otherwise the onerror on the
+          primary script tag will invoke loadSatjsFallback automatically.
+    ==================================================================== */
+    window.addEventListener('load', function () {
+      initMap();
+
+      if (typeof satellite !== 'undefined' &&
+          typeof satellite.twoline2satrec === 'function') {
+        onSatjsReady();
+      } else {
+        // Disable the run button while the fallback CDN loads.
+        var btn = document.getElementById('runBtn');
+        if (btn) btn.disabled = true;
+      }
+    });
+  </script>
+</body>
+
+</html>
